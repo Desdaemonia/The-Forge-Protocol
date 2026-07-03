@@ -169,6 +169,12 @@ Run it before any curation/re-key/sweep pass, and when the newest snapshot is ov
 
 **Counts are mechanical.** Any reconcile check (entries before = after) comes from `grep -c '^## '`, never model enumeration — the 2000-line Read cap makes model-counted totals silently wrong at these file sizes, and a wrong count can pass its own safeguard.
 
+**Block moves must preserve bytes — `sed`/`awk` silently don't.** The Notes ∧ Journal files are Windows-CRLF (the live Notes measured 1437 CRLF + 39 LF lines). A mechanical block-move — sweep, split, re-key — must relocate *bytes*, never re-typed lines. `sed -n '214,1418p'` strips CR→LF on output, so every moved line reads as "changed": a line-ending corruption wearing a full-file-rewrite's face, and an integrity diff that lights up end-to-end. Slice with a byte-preserving reader instead — Python `open(f,'rb').read().splitlines(keepends=True)`, partition the list, `b"".join(...)` back; partition-∧-rejoin of a keepends list is byte-exact by construction. `head`/`tail` keep the CR too; `sed`/`awk` do not.
+
+**Prove the move lossless before you overwrite live.** After slicing, assert `top + moved + bottom == the pre-pass snapshot bytes`, exactly, ∧ that headers reconcile (`kept + archived == before`, all from `grep -c '^## '`). Stage the rebuilt file to a temp path, verify it *there*, then copy into place — never overwrite the live file on faith. Then Read it back: a write returning "success" is not proof it wrote what you meant (a July 2026 sweep's own handoff line corrupted a path on write; only the read-back caught it). Order of operations stays archive-first: copy the move-set out ∧ verify it landed *before* trimming the live file, so a mid-pass stop leaves the live file whole.
+
+**Two Python foot-guns on this machine.** (1) A Windows path in a plain string literal octal-escapes — `"...\2026..."` becomes a control byte + `6`. Use forward slashes (`Claude's Backup/2026-…`), a raw string (`r"…"`), or `os.path`. (2) A script thick with quotes ∧ ∧/∨/→ glyphs breaks `python3 - <<'PY'` on the shell parse — write it to a file with the Write tool ∧ run `python3 file.py`; you keep byte control ∧ skip the heredoc entirely.
+
 ### Integration with Session Protocol
 
 The cold start protocol should be explicit in whatever project or system instructions govern the AI's behavior:
