@@ -138,6 +138,37 @@ Deliberate curation is a separate mode, permitted under the discipline in Curati
 
 The Forge file should be in persistent storage the AI has read/write access to. If using Claude with Desktop Commander: `Desktop Commander:write\\\_file` with `mode: 'append'` is the correct tool. `Desktop Commander:read\\\_file` for reading. `Desktop Commander:edit\\\_block` for surgical amendments to existing entries (adding new search terms, for example). During routine writing, never use a full-file overwrite tool on the Forge; deliberate curation is the one exception and follows the Curation safeguards (consolidate don't delete, retire when unsure, reconcile the title-index manifest before and after).
 
+### Claude Code (this machine, July 2026)
+
+No Desktop Commander in this runtime — built-in tools only. The safe paths:
+
+**Append (Forge, Journal, Notes, HANDOFF)** — guarded Bash heredoc. Appends raw UTF-8: cannot emit a BOM, cannot interpolate (`$`, backticks, ∧ ∨ ∴ all pass literal). `test -f` stops a typo'd path from silently creating a new file; the leading blank line covers non-terminated files (Runtime.md shipped without a trailing newline once); `tail` shows the landing:
+
+```bash
+f='C:/Users/Owner/Documents/ClaudeFolder/FreeSpace/Forge_Index.md'
+test -f "$f" && cat >> "$f" <<'FORGE_EOF'
+
+## [Title]
+[body]
+**Find it:** [date, keywords, reachable pointer]
+FORGE_EOF
+tail -n 4 "$f"
+```
+
+**Paired append** — a new Forge entry and its title-index line go as two chained heredocs in ONE Bash command (`... FORGE_EOF` then `&& cat >> "$idx" <<'IDX_EOF' ...`). A tool call completes or doesn't; compaction cannot land inside one. This closes the manifest-divergence window that left three anchors index-less before the July 2026 re-key.
+
+**Amendment** — `grep -n` the entry title for its line number → `Read` that slice (built-in Read caps at 2000 lines; the Forge is past 1,100 and growing) → `Edit` anchored on the title or *Find it* line, Amendment block placed before *Find it* per convention.
+
+**Repair** — a malformed append (truncated heredoc, wrong spot) is fixed by appending an Amendment, never by rewriting.
+
+**PowerShell writes no memory file.** PS 5.1's default encodings vary by cmdlet (ANSI/UTF-16); `Add-Content` without `-Encoding UTF8` mangles ∧ ∨ ∴; a typo'd path silently creates a BOM'd file. Reading and byte-exact copying (`Copy-Item`) are fine — that's the snapshot path:
+
+`$dst = "C:\Users\Owner\Documents\ClaudeFolder\Claude's Backup\$(Get-Date -Format 'yyyy-MM-dd_HHmm') Freespace"; if (-not (Test-Path $dst)) { Copy-Item 'C:\Users\Owner\Documents\ClaudeFolder\FreeSpace' $dst -Recurse }`
+
+Run it before any curation/re-key/sweep pass, and when the newest snapshot is over 7 days old in a session that will write memory files. Keep the newest three; pruning is Casey's manual act, never automated.
+
+**Counts are mechanical.** Any reconcile check (entries before = after) comes from `grep -c '^## '`, never model enumeration — the 2000-line Read cap makes model-counted totals silently wrong at these file sizes, and a wrong count can pass its own safeguard.
+
 ### Integration with Session Protocol
 
 The cold start protocol should be explicit in whatever project or system instructions govern the AI's behavior:
